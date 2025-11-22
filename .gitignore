@@ -8,3 +8,35 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Data
+*/data
+*/datasets
+*.csv
+*.tsv
+*.txt
+*.json
+*.jsonl
+
+# Models & Checkpoints * Logs
+checkpoints/
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.h5
+*.pkl
+*.pickle
+log
+

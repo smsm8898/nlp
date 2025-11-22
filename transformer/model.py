@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import lightning as L
+from transformer.loss import LabelSmoothingLoss
 import math
 from typing import Optional
 
@@ -384,7 +386,160 @@ class Transformer(nn.Module):
         for layer in self.decoder_layers:
             x = layer(x, enc_output, src_mask, tgt_mask)
         return x
+
+
+class WMT14TransformerModule(L.LightningModule):
+    def __init__(
+            self,
+            src_vocab_size: int,
+            tgt_vocab_size: int,
+            d_model: int,
+            num_heads: int,
+            num_encoder_layers: int,
+            num_decoder_layers: int,
+            d_ff: int,
+            dropout: float,
+            max_seq_len: int,
+            warmup_steps: int,
+            label_smoothing: float,
+            pad_idx:int,
+        ):
+        super().__init__()
+        self.save_hyperparameters()
+
+        # Model
+        self.model = Transformer(
+            src_vocab_size=src_vocab_size,
+            tgt_vocab_size=tgt_vocab_size,
+            d_model=d_model,
+            num_heads=num_heads,
+            num_encoder_layers=num_encoder_layers,
+            num_decoder_layers=num_decoder_layers,
+            d_ff=d_ff,
+            max_seq_len=max_seq_len,
+            dropout=dropout,
+        )
     
+        # Loss function
+        self.criterion = LabelSmoothingLoss(
+            vocab_size=tgt_vocab_size,
+            pad_idx=pad_idx,
+            smoothing=label_smoothing,
+        )
+
+        # For logging
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
+
+    def NoamLRScheduler(self, step): 
+        """Noam Learning Rate Schedule"""
+        if step == 0:
+            step = 1
+        return (self.hparams.d_model ** (-0.5)) * min(
+            step ** (-0.5),
+            step * (self.hparams.warmup_steps ** (-1.5))
+        )
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=1.0, # Will be overridden by scheduler
+            betas=(0.9, 0.98),
+            eps=1e-9
+        )
+
+        scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer=optimizer,
+            lr_lambda=self.NoamLRScheduler
+        )
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "step", # Update every step
+                "frequency": 1,
+            }
+        }
+
+    def forward(self, src, tgt):
+        return self.model(src, tgt)
+    
+    def training_step(self, batch, batch_idx):
+        src, tgt = batch
+
+        # Teacher forcing: using all tokens except last for input
+        tgt_input = tgt[:, : -1]
+        tgt_output = tgt[:, 1:]
+
+        # Forward Pass
+        output = self(src, tgt_input)
+
+        # Loss
+        output = output.reshape(-1, output.size(-1))
+        tgt_output = tgt_output.reshape(-1)
+        loss = self.criterion(output, tgt_output)
+
+        # Calculate Perplexity(ppl)
+        num_tokens = (tgt_output != self.hparams.pad_idx).sum()
+        loss_per_token = loss / num_tokens
+        perplexity = torch.exp(loss_per_token.clamp(max=20))
+
+        # Logging
+        self.log("train_loss", loss_per_token, on_step = True, on_epoch=True, prog_bar=True)
+        self.log("train_ppl", perplexity, on_step = True, on_epoch=True, prog_bar=True)
+        self.training_step_outputs.append({
+            "loss": loss_per_token.detach(),
+            "ppl": perplexity.detach(),
+        })
+
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+        src, tgt = batch
+
+        # Teacher forcing: using all tokens except last for input
+        tgt_input = tgt[:, : -1]
+        tgt_output = tgt[:, 1:]
+
+        # Forward Pass
+        output = self(src, tgt_input)
+
+        # Loss
+        output = output.reshape(-1, output.size(-1))
+        tgt_output = tgt_output.reshape(-1)
+        loss = self.criterion(output, tgt_output)
+
+        # Calculate Perplexity(ppl)
+        num_tokens = (tgt_output != self.hparams.pad_idx).sum()
+        loss_per_token = loss / num_tokens
+        perplexity = torch.exp(loss_per_token.clamp(max=20))
+
+        # Logging
+        self.log("val_loss", loss_per_token, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val_ppl", perplexity, on_step=False, on_epoch=True, prog_bar=True)
+        self.validation_step_outputs.append({
+            "loss": loss_per_token.detach(),
+            "ppl": perplexity.detach(),
+        })
+    
+    def on_train_epoch_end(self):
+        avg_loss = torch.stack([x["loss"] for x in self.training_step_outputs]).mean()
+        avg_ppl = torch.stack([x["ppl"] for x in self.training_step_outputs]).mean()
+
+        self.log("train_loss_epoch", avg_loss)
+        self.log("train_ppl_epoch", avg_ppl)
+
+        self.training_step_outputs.clear()
+
+    def on_validation_epoch_end(self):
+        avg_loss = torch.stack([x["loss"] for x in self.validation_step_outputs]).mean()
+        avg_ppl = torch.stack([x["ppl"] for x in self.validation_step_outputs]).mean()
+
+        self.log("val_loss_epoch", avg_loss)
+        self.log("val_ppl_epoch", avg_ppl)
+
+        self.validation_step_outputs.clear()
 
 # 모델 초기화 예제
 if __name__ == "__main__":

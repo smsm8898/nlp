@@ -36,7 +36,7 @@ def get_arguments():
 
     # Hardware
     parser.add_argument("--accelerator", type=str, default="cpu", choices=["cpu", "mps"])
-    parser.add_argument("--precision", type=str, default="32", choices=["16", "32", "bf16"])
+    parser.add_argument("--precision", type=str, default="16-mixed")
     parser.add_argument("--gradient_clip_val", type=float, default=1.0)
 
     return parser.parse_args()

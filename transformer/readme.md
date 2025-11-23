@@ -13,9 +13,12 @@
 run preprocess.ipynb
 ```
 2. Train (Base)Transformer
-```
+```bash
 python -m transformer.train 
+or 
+./run.sh base
 ```
+
 
 ## 🎯 Project Goals
 This project aims to:
@@ -30,7 +33,8 @@ Experiment with training techniques and hyperparameters
 - [x] Review transformer paper
 - [x] Train BPE tokenizer
 - [x] Implement transformer architecture
-- [x] Train (base) transformer on WMT14 English-German
+- [] Train (tiny) transformer on WMT14 English-German
+  - In MPS, (Base or Big) Model takes too much time
 - [] Translate WMT14 using beam search
 
 

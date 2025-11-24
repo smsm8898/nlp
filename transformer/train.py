@@ -5,8 +5,6 @@ from transformer.dataset import WMT14DataModule
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
 from lightning.pytorch.loggers import TensorBoardLogger
 
-# TODO: label_smoothing, precision, gradient_clip_val, noam learning rate scheduler
-
 def get_arguments():
     parser = argparse.ArgumentParser(description="Train Transformer from English to Geman")
 

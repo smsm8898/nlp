@@ -34,8 +34,7 @@ Experiment with training techniques and hyperparameters
 - [x] Train BPE tokenizer
 - [x] Implement transformer architecture
 - [] Train (tiny) transformer on WMT14 English-German
-  - In MPS, (Base or Big) Model takes too much time
-- [] Translate WMT14 using beam search
+  - In MPS, it takes too much time to train Transformer from scratch
 
 
 ## 📊 Dataset
@@ -56,3 +55,11 @@ Experiment with training techniques and hyperparameters
 - Decoder: 6 identical layers with masked self-attention, cross-attention, and feed-forward networks
 - Layer Normalization: Applied after each sub-layer with residual connections
 - Label Smoothing: ε = 0.1 for regularization
+
+## ❓
+- [] BPE
+- [] LabelSmoothing
+- [] LayerNorm
+- [] Dropout
+- [] noam learning rate scheduler
+- [] Hardware: precision, gradient_clip

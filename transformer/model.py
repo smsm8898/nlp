@@ -6,8 +6,6 @@ from transformer.loss import LabelSmoothingLoss
 import math
 from typing import Optional
 
-# TODO: LayerNorm, Dropout, Register_buffer, masked_fill
-
 
 class MultiHeadAttention(nn.Module):
     """Multi-head Attention Mechanism"""
